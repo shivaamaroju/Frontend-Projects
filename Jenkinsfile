@@ -5,6 +5,8 @@ pipeline {
         DOCKER_USER = "shivaamaroju"
         IMAGE_NAME = "3d-social-icons"
         SUB_DIR = "3d social media icons" 
+        // This tells kubectl to use the K3s security credentials
+        KUBECONFIG = "/etc/rancher/k3s/k3s.yaml"
     }
 
     stages {
@@ -29,13 +31,17 @@ pipeline {
 
         stage('Deploy to K3s') {
             steps {
-                // This command tells K3s to apply your deployment and service
-                // It will automatically update the pods with the 'latest' image we just pushed
-                sh "kubectl apply -f deployment.yaml"
-                
-                // Force a rollout restart to ensure the new 'latest' image is pulled
+                // Apply the deployment and force a restart to pull the newest 'latest' image
+                sh "kubectl apply -f deployment.yaml --validate=false"
                 sh "kubectl rollout restart deployment social-icons-deployment"
             }
+        }
+    }
+
+    post {
+        success {
+            sh 'docker image prune -f'
+            echo "Successfully deployed to K3s! Check http://<your-vm-ip>:30007"
         }
     }
 }
