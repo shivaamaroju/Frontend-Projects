@@ -5,14 +5,17 @@ pipeline {
         DOCKER_USER = "shivaamaroju"
         IMAGE_NAME = "3d-social-icons"
         SUB_DIR = "3d social media icons" 
-        // This tells kubectl to use the K3s security credentials
-        KUBECONFIG = "/etc/rancher/k3s/k3s.yaml"
     }
 
     stages {
-        stage('Checkout & Login') {
+        stage('Checkout') {
             steps {
                 git branch: 'master', url: 'https://github.com/shivaamaroju/Frontend-Projects.git'
+            }
+        }
+
+        stage('Login to DockerHub') {
+            steps {
                 withCredentials([usernamePassword(credentialsId: 'docker-hub-token', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
                     sh 'echo $PASS | docker login -u $USER --password-stdin'
                 }
@@ -29,11 +32,14 @@ pipeline {
             }
         }
 
-        stage('Deploy to K3s') {
+        stage('Deploy to MicroK8s') {
             steps {
-                // Apply the deployment and force a restart to pull the newest 'latest' image
-                sh "kubectl apply -f deployment.yaml --validate=false"
-                sh "kubectl rollout restart deployment social-icons-deployment"
+                // MicroK8s uses its own kubectl command. 
+                // We use --validate=false to skip openapi authentication errors.
+                sh "microk8s kubectl apply -f deployment.yaml --validate=false"
+                
+                // Force Kubernetes to pull the 'latest' image we just pushed
+                sh "microk8s kubectl rollout restart deployment social-icons-deployment"
             }
         }
     }
@@ -41,7 +47,11 @@ pipeline {
     post {
         success {
             sh 'docker image prune -f'
-            echo "Successfully deployed to K3s! Check http://<your-vm-ip>:30007"
+            echo "Successfully deployed to MicroK8s!"
+            echo "Check your External IP: microk8s kubectl get svc"
+        }
+        failure {
+            echo "Deployment failed. Check if 'jenkins' user is in 'microk8s' group."
         }
     }
 }
