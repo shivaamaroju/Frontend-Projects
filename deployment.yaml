@@ -23,11 +23,10 @@ kind: Service
 metadata:
   name: social-icons-service
 spec:
-  type: NodePort
+  type: LoadBalancer
   selector:
     app: social-icons
   ports:
     - protocol: TCP
       port: 80
       targetPort: 80
-      nodePort: 30007
